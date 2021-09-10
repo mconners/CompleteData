@@ -8,6 +8,7 @@ using Microsoft.Extensions.Hosting;
 using System.Linq;
 using CompleteData.Server.Data;
 using CompleteData.Shared.Models;
+using Microsoft.OpenApi.Models;
 
 namespace CompleteData.Server
 {
@@ -28,6 +29,11 @@ namespace CompleteData.Server
             services.AddTransient<RepositoryEF<Customers, NorthwindContext>>();
             services.AddControllersWithViews();
             services.AddRazorPages();
+
+            services.AddSwaggerGen(c =>
+            {
+                c.SwaggerDoc("v1", new OpenApiInfo { Title = "TodoApi", Version = "v1" });
+            });
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -37,6 +43,8 @@ namespace CompleteData.Server
             {
                 app.UseDeveloperExceptionPage();
                 app.UseWebAssemblyDebugging();
+                app.UseSwagger();
+                app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "TodoApi v1"));
             }
             else
             {
