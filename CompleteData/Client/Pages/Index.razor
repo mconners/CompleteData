@@ -1,0 +1,192 @@
+﻿@page "/"
+@inject CustomerManager CustomerManager
+
+@if (Customers != null)
+{
+    <span>&nbsp;Search by Name:&nbsp;</span>
+    <input @bind="@SearchName" />
+    <button @onclick="Search">Search</button>
+    <br />
+    <br />
+
+    <button @onclick="GetAllCustomers">Show All</button>
+    @if (CanIAddaCustomer())
+    {
+        <button @onclick="AddCustomer">Add Customer</button>
+    }
+    <br />
+    <br />
+    <select @onchange="CustomerSelected" size="10" style="width:100%;">
+        @foreach (var customer in Customers)
+        {
+            <option value="@customer.CustomerId">@customer.ContactName</option>
+        }
+    </select>
+    <br />
+    <br />
+}
+else
+{
+    <i>Loading Customers...</i>
+}
+@if (Customer != null)
+{
+    <span>&nbsp;Update Name:&nbsp;</span>
+    <input @bind="@Customer.ContactName" />
+    <button @onclick="UpdateCustomer">Update</button>
+    <br />
+    <br />
+    <button @onclick="DeleteCustomer">Delete</button>
+
+}
+<br />
+<span style="color:red;">@ErrorMessage</span>
+
+@code
+{
+    List<Customers> Customers;
+    Customers Customer;
+    string SearchName = "";
+    string ErrorMessage = "";
+
+    async Task DeleteCustomer()
+    {
+        ErrorMessage = "";
+        if (await CustomerManager.Delete(Customer))
+        {
+            var original = (from x in Customers
+                            where x.CustomerId == Customer.CustomerId
+                            select x).FirstOrDefault();
+            if (original != null)
+            {
+                var index = Customers.IndexOf(original);
+                Customers.RemoveAt(index);
+                Customer = null;
+
+            }
+        }
+        else
+        {
+            ErrorMessage = "Could not delete Customer.";
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    async Task UpdateCustomer()
+    {
+        ErrorMessage = "";
+        var original = (from x in Customers
+                        where x.CustomerId == Customer.CustomerId
+                        select x).FirstOrDefault();
+        if (original != null)
+        {
+            var index = Customers.IndexOf(original);
+            var updated = await CustomerManager.Update(Customer);
+            if (updated != null)
+            {
+                Customers[index] = updated;
+            }
+            else
+            {
+                ErrorMessage = "Could not update Customer";
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    async Task Search()
+    {
+        ErrorMessage = "";
+        var result = await CustomerManager.SearchByContactName(SearchName);
+        if (result != null)
+        {
+            Customers = result.ToList<Customers>();
+        }
+        else
+        {
+            Customers = new List<Customers>();
+            ErrorMessage = "No matching Customers.";
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    async Task CustomerSelected(ChangeEventArgs args)
+    {
+        var result = (from x in Customers
+                      where x.CustomerId == args.Value.ToString()
+                      select x).FirstOrDefault();
+
+        // Get the Customer via the API just to exercise all the methods:
+        Customer = await CustomerManager.GetByID(result.CustomerId);
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    bool CanIAddaCustomer()
+    {
+        // only if it doesn't exist
+        var existing = (from x in Customers
+                        where x.CustomerId == "CFUSA"
+                        select x).FirstOrDefault();
+        if (existing != null)
+            return false;
+        else
+            return true;
+    }
+
+    async Task AddCustomer()
+    {
+        ErrorMessage = "";
+        var Customer = new Customers();
+        Customer.Address = "1 Somewhere Street";
+        Customer.City = "Anytown";
+        Customer.CompanyName = "Pwop";
+        Customer.ContactName = "Carl Franklin";
+        Customer.ContactTitle = "President";
+        Customer.CustomerId = "CFUSA";
+        Customer.Country = "USA";
+        Customer.Fax = "1112222333";
+        Customer.Phone = "123123132";
+        Customer.PostalCode = "09876";
+        Customer.Region = "New London";
+        var result = await CustomerManager.Insert(Customer);
+        if (result != null)
+        {
+            Customers.Add(result);
+            Customer = result;
+        }
+        else
+        {
+            ErrorMessage = "Could not add customer";
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    async Task GetAllCustomers()
+    {
+        ErrorMessage = "";
+        try
+        {
+            var result = await CustomerManager.GetAll();
+            if (result != null)
+            {
+                Customers = result.ToList<Customers>();
+                Customer = null;
+            }
+            else
+            {
+                ErrorMessage = "Could not fetch customers";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetAllCustomers();
+    }
+
+}
